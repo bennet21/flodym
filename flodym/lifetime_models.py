@@ -325,6 +325,72 @@ class WeibullLifetime(LifetimeModel):
             loc=0,
             scale=self.weibull_scale[m, ...],
         )
+    
+class TruncatedWeibullLifetime(WeibullLifetime):
+    """Weibull distribution truncated to a minimum and maximum lifetime."""
+
+    min_lifetime: Any = None
+    max_lifetime: Any = None
+
+    @property
+    def prms(self):
+        return {
+            "weibull_shape": self.weibull_shape, 
+            "weibull_scale": self.weibull_scale,
+            "min_lifetime": self.min_lifetime,
+            "max_lifetime": self.max_lifetime
+        }
+
+    def set_prms(self, weibull_shape: FlodymArray, weibull_scale: FlodymArray, 
+                 min_lifetime: FlodymArray, max_lifetime: FlodymArray):
+        super().set_prms(weibull_shape, weibull_scale)
+        self.min_lifetime = self.cast_any_to_np_array(min_lifetime)
+        self.max_lifetime = self.cast_any_to_np_array(max_lifetime)
+
+    def _survival_by_year_id(self, t, m):
+        if np.min(self.weibull_shape) < 0:
+            raise ValueError("Lifetime weibull_shape must be positive for Weibull distribution.")
+        if np.any(self.min_lifetime > self.max_lifetime):
+            raise ValueError("min_lifetime must be less than or equal to max_lifetime.")
+
+        # Get the raw Weibull survival function
+        weib_sf = scipy.stats.weibull_min.sf(
+            t,
+            c=self.weibull_shape[m, ...],
+            loc=0,
+            scale=self.weibull_scale[m, ...],
+        )
+        
+        # Get SF values at truncation points
+        sf_min = scipy.stats.weibull_min.sf(
+            self.min_lifetime[m, ...],
+            c=self.weibull_shape[m, ...],
+            loc=0,
+            scale=self.weibull_scale[m, ...],
+        )
+        
+        sf_max = scipy.stats.weibull_min.sf(
+            self.max_lifetime[m, ...],
+            c=self.weibull_shape[m, ...],
+            loc=0,
+            scale=self.weibull_scale[m, ...],
+        )
+
+        # Apply truncation formula: (SF(t) - SF(max)) / (SF(min) - SF(max))
+        denominator = sf_min - sf_max
+        # Avoid division by zero
+        denominator = np.where(denominator == 0, np.finfo(float).eps, denominator)
+        
+        truncated_sf = (weib_sf - sf_max) / denominator
+        
+        # Apply bounds
+        min_mask = t < self.min_lifetime[m, ...]
+        max_mask = t > self.max_lifetime[m, ...]
+        
+        truncated_sf = np.where(min_mask, 1.0, truncated_sf)
+        truncated_sf = np.where(max_mask, 0.0, truncated_sf)
+        
+        return truncated_sf
 
     # @staticmethod
     # def weibull_c_scale_from_mean_std(mean, std):
