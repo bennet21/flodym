@@ -47,6 +47,8 @@ class ArrayPlotter(CustomNameDisplayer, ABC, PydanticBaseModel):
     """Type of line to plot. Can be 'solid', 'dashed', 'dotted', or 'dashdot'."""
     suppress_legend: bool = False
     """If True, the legend is not shown."""
+    step: int = 1
+    """Step size for plotting points. Only every `step`th point will be plotted. Default is 1 (all points)."""
     __pydantic_extra__: dict[str, Any]
 
     @model_validator(mode="after")
@@ -181,7 +183,9 @@ class ArrayPlotter(CustomNameDisplayer, ABC, PydanticBaseModel):
                 "All dimensions of array must be given exactly once. Either as x_dim / subplot_dim / linecolor_dim, or in "
                 "slice_dict or summed_dims."
             )
-            self.add_line(i_subplot, x_array_line.values, array_line.values, prev_y, label, i_line)
+            x_array = x_array_line.values[::self.step]
+            y_array = array_line.values[::self.step]
+            self.add_line(i_subplot, x_array, y_array, prev_y, label, i_line)
             prev_y = array_line.values
 
     def _label_subplot(self, i_subplot: int):
