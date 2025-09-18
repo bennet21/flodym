@@ -314,8 +314,12 @@ class PlotlyArrayPlotter(ArrayPlotter):
     """A previously created plotly figure object, for adding lines to an existing figure.
     If None, a new figure is created.
     """
-    color_map: list[str] = plc.qualitative.Dark24
-    """List of colors to use for the lines. If None, a default color map is used."""
+
+    @model_validator(mode="after")
+    def set_default_color_map(self):
+        if self.color_map is None:
+            self.color_map = plc.qualitative.Dark24
+        return self
 
     def save(self, save_path: str = None, **kwargs):
         self.fig.write_image(save_path, **kwargs)
