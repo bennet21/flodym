@@ -329,6 +329,13 @@ class PlotlyArrayPlotter(ArrayPlotter):
 
     def get_fig(self):
         fig = make_subplots(self.ny, self.nx, subplot_titles=self.subplot_titles)
+        # TODO add a transparent background option to config
+        fig.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',   # Makes the plot area transparent
+            paper_bgcolor='rgba(0,0,0,0)',  # Makes the area outside the plot transparent
+        )
+        fig.update_xaxes(gridcolor='LightGray')
+        fig.update_yaxes(gridcolor='LightGray')
         return fig
 
     def _fill_fig(self):
